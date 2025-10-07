@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Results and output directories
+results/
+logs/
+figs/
+dat/
+
+# Subdirectories in scripts/
+scripts/*/
+# But allow tracking of direct scripts
+!scripts/*.py
+!scripts/*.sh
+!scripts/*.R
+
+# Subdirectories in notebooks/
+notebooks/*/
+# But allow tracking of direct notebooks
+!notebooks/*.ipynb
+
+# Snakemake
+.snakemake/
+
+# macOS
+.DS_Store
+._*
+
+# Editor backups
+*~
+*.swp
+*.swo
+
+# Output files
+nohup.out
+*.log
+*.out
+*.png
+*.pdf
+*.csv
+
+# Config files that might contain sensitive data
+config/local.yaml
+config/private.yaml
+
+# Temporary files
+lib/
+GetGoTerms/
