@@ -5,7 +5,7 @@
 # ========================================================================================================
 
 import sys
-sys.path.insert(1, '/home/jw3514/Work/CellType_Psy/src')
+import os
 sys.path.insert(1, '/home/jw3514/Work/UNIMED/src')
 from CellType_PSY import *
 from UNIMED import *
@@ -13,7 +13,6 @@ from UNIMED import *
 import multiprocessing
 from multiprocessing import Pool
 import argparse
-import sys
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -39,17 +38,16 @@ def calculate_cluster_AvgBias(Disorder_Series, SpecMat, TopGenes, Anno, mode):
     elif mode == "MouseSTR":
         if Anno is None:
             raise ValueError("Annotation data is missing for MouseSTR mode")
-        results_df["Region"] = [Anno.get(ct_idx, "Unknown") for ct_idx in results_df['Structure'].values]
-        results_df = results_df.reset_index(drop=True)
+        results_df = MouseSTR_AvgZ_Weighted(SpecMat, GeneZSTAT)
+        results_df["Region"] = [Anno.get(ct_idx, "Unknown") for ct_idx in results_df.index.values]
         results_df["Rank"] = np.arange(1, len(results_df) + 1)
+
     elif mode == "MouseCT":
         results_df = MouseCT_AvgZ_Weighted(SpecMat, GeneZSTAT)
-        print(results_df.head())
         if Anno is None:
             raise ValueError("Annotation data is missing for MouseCT mode")
-        results_df['class_id_label'] = Anno.loc[results_df['ct_idx'].values, "class_id_label"].values
-        results_df['subclass_id_label'] = Anno.loc[results_df['ct_idx'].values, "subclass_id_label"].values
-    results_df = results_df.set_index("ct_idx")
+        results_df = add_class(results_df, Anno)
+    #results_df = results_df.set_index("ct_idx")
     return results_df
 
 def GetOption():
@@ -79,7 +77,7 @@ def process_file(filename, SpecMat, TopGenes, outDIR, mode, Anno, exclude_genes)
         
     results = calculate_cluster_AvgBias(GWAS_DF["ZSTAT"], SpecMat, TopGenes, Anno, mode)
     
-    outname = f"{outDIR}/{mode}.Bias.{name}.Z2.csv"
+    outname = f"{outDIR}/{mode}.{name}.csv"
     results.to_csv(outname, index_label="ct_idx")
         
     logging.info(f"Completed processing file: {filename}")
@@ -126,41 +124,39 @@ def main():
         logging.info(f"Excluding {len(exclude_genes)} genes from analysis")
     
     # Load appropriate data based on mode
+    if not args.biasMat:
+        raise ValueError("You must provide --biasMat (no default allowed)")
     if args.mode == "HumanCT":
         Annotat = Anno
-        Z2Mat = pd.read_csv(args.biasMat if args.biasMat else 
-                           "/home/jw3514/Work/CellType_Psy/dat/HumanCTExpressionMats/Human.Cluster.Log2Mean.Z1clip5.Z2.clip3.Dec30.csv",
-                           index_col=0)
-        Z2Mat.columns = Z2Mat.columns.astype(int)
+        BiasMat = pd.read_parquet(args.biasMat)
+        BiasMat.columns = BiasMat.columns.astype(int)
     elif args.mode == "MouseSTR":
         Annotat = STR2Region()
-        Z2Mat = pd.read_csv(args.biasMat if args.biasMat else 
-                            "/home/jw3514/Work/ASD_Circuits/dat/allen-mouse-exp/AllenMouseBrain_Z2bias.csv", index_col=0)
+        BiasMat = pd.read_parquet(args.biasMat)
     elif args.mode == "MouseCT":
-        Annotat = pd.read_csv("../dat/MouseCT_Cluster_Anno.csv", index_col="cluster_id_label")
-        Z2Mat = pd.read_csv(args.biasMat if args.biasMat else 
-                           "/home/jw3514/Work/CellType_Psy/AllenBrainCellAtlas/dat/SC_UMI_Mats/Cluster_Z2Mat_ISHMatch.z1clip3.csv", index_col=0)
+        Annotat = pd.read_csv("/home/jw3514/Work/UNIMED/dat/MouseCT_Cluster_Anno.csv", index_col="cluster_id_label")
+        BiasMat = pd.read_parquet(args.biasMat)
     
     # Remove excluded genes from expression matrix
     print(list(exclude_genes)[:10])
-    print(Z2Mat.index[:10])
-    logging.info(f"Expression matrix shape: {Z2Mat.shape}")
+    print(BiasMat.index[:10])
+    logging.info(f"Expression matrix shape: {BiasMat.shape}")
     if len(exclude_genes) > 0:
         # Get genes to keep by finding genes not in exclude list
-        genes_to_keep = [g for g in Z2Mat.index if g not in exclude_genes]
+        genes_to_keep = [g for g in BiasMat.index if g not in exclude_genes]
         # Filter matrix to only keep allowed genes
-        Z2Mat = Z2Mat.loc[genes_to_keep]
-        logging.info(f"Expression matrix shape after excluding genes: {Z2Mat.shape}")
+        BiasMat = BiasMat.loc[genes_to_keep]
+        logging.info(f"Expression matrix shape after excluding genes: {BiasMat.shape}")
     
-    if Z2Mat.empty:
+    if BiasMat.empty:
         logging.error("Expression matrix is empty after filtering")
         return
         
     # Get top genes using vectorized operations
-    TopGenes = 160000
+    TopGenes = 200000 # Use All genes
     
     # Process files
-    process_batch(input_files, Z2Mat, TopGenes, outDIR, args.mode, Annotat, exclude_genes, args.processes)
+    process_batch(input_files, BiasMat, TopGenes, outDIR, args.mode, Annotat, exclude_genes, args.processes)
 
 if __name__ == '__main__':
     main()

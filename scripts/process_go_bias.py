@@ -24,7 +24,7 @@ def process_go_bias(args: Tuple[str, str, pd.DataFrame]) -> Tuple[str, str, floa
     go_id, go_name, mouse_ct_df = args
     try:
         # Read the GO bias file
-        go_bias = pd.read_csv(f"{GoBiasDIR}/GoBias.{go_id[3:]}.specpecentile.csv", index_col=0)
+        go_bias = pd.read_csv(f"{GoBiasDIR}/GoBias.{go_id[3:]}.spec.csv", index_col=0)
         
         # Add PC1-PC5 scores
         for pc in range(1,6):

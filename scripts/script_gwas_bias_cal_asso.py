@@ -158,46 +158,46 @@ def GetOption():
     args = parser.parse_args()
     return args
 
-def process_file(filename, Z2Mat, outDIR, Model, Anno):
+def process_file(filename, BiasMat, outDIR, Model, Anno):
 
     name = ".".join(filename.split("/")[-1].split(".")[0:1])
     GWAS_DF = pd.read_csv(filename, sep="\t", index_col="GENE")
-    GWAS_DF = GWAS_DF[GWAS_DF.index.isin(Z2Mat.index.values)]
+    GWAS_DF = GWAS_DF[GWAS_DF.index.isin(BiasMat.index.values)]
 
     print(filename)
     print(name)
 
     if Model == "HumanCT":
         outname = f"{outDIR}/HumanCT.Bias.{name}.Z2.csv"
-        HumanCellTypeBiasCal(Z2Mat, GWAS_DF, Anno, outname)
+        HumanCellTypeBiasCal(BiasMat, GWAS_DF, Anno, outname)
     elif Model == "MouseCT":
         outname = f"{outDIR}/MouseCT.Bias.{name}.Z2.csv"
-        ABC_CellTypeBiasCal(Z2Mat, GWAS_DF, Anno, outname)
+        ABC_CellTypeBiasCal(BiasMat, GWAS_DF, Anno, outname)
     elif Model == "MouseSTR":
         outname = f"{outDIR}/MouseSTR.Bias.{name}.Z2.csv"
-        MouseSTRBiasCal(Z2Mat, GWAS_DF, Anno, outname)
+        MouseSTRBiasCal(BiasMat, GWAS_DF, Anno, outname)
 
-def process_batch(files, Z2Mat, outDIR, Model, Anno):
+def process_batch(files, BiasMat, outDIR, Model, Anno):
     pool = multiprocessing.Pool(processes=20)
-    pool.starmap(process_file, [(filename, Z2Mat, outDIR, Model, Anno) for filename in files])
+    pool.starmap(process_file, [(filename, BiasMat, outDIR, Model, Anno) for filename in files])
     pool.close()
     pool.join()
 
-def ABC_CellTypeBiasCal(Z2Mat, GWAS_DF, Anno, outname):
-    GWAS_DF = GWAS_DF[GWAS_DF.index.isin(Z2Mat.index.values)]
-    Disorder_GWAS_spec = calculate_cluster_correlations_MouseCT(Z2Mat, GWAS_DF, Anno, eff_label="ZSTAT")
+def ABC_CellTypeBiasCal(BiasMat, GWAS_DF, Anno, outname):
+    GWAS_DF = GWAS_DF[GWAS_DF.index.isin(BiasMat.index.values)]
+    Disorder_GWAS_spec = calculate_cluster_correlations_MouseCT(BiasMat, GWAS_DF, Anno, eff_label="ZSTAT")
     Disorder_GWAS_spec.to_csv(outname)
     return Disorder_GWAS_spec
 
-def HumanCellTypeBiasCal(Z2Mat, GWAS_DF, Anno, outname):
-    GWAS_DF = GWAS_DF[GWAS_DF.index.isin(Z2Mat.index.values)]
-    Disorder_GWAS_spec = calculate_cluster_correlations_HumanCT(Z2Mat, GWAS_DF, Anno, eff_label="ZSTAT")
+def HumanCellTypeBiasCal(BiasMat, GWAS_DF, Anno, outname):
+    GWAS_DF = GWAS_DF[GWAS_DF.index.isin(BiasMat.index.values)]
+    Disorder_GWAS_spec = calculate_cluster_correlations_HumanCT(BiasMat, GWAS_DF, Anno, eff_label="ZSTAT")
     Disorder_GWAS_spec.to_csv(outname)
     return Disorder_GWAS_spec
 
-def MouseSTRBiasCal(Z2Mat, GWAS_DF, Anno, outname):
-    GWAS_DF = GWAS_DF[GWAS_DF.index.isin(Z2Mat.index.values)]
-    Disorder_GWAS_spec = calculate_str_correlations_MouseSTR(Z2Mat, GWAS_DF, Anno, eff_label="ZSTAT")
+def MouseSTRBiasCal(BiasMat, GWAS_DF, Anno, outname):
+    GWAS_DF = GWAS_DF[GWAS_DF.index.isin(BiasMat.index.values)]
+    Disorder_GWAS_spec = calculate_str_correlations_MouseSTR(BiasMat, GWAS_DF, Anno, eff_label="ZSTAT")
     Disorder_GWAS_spec.to_csv(outname)
     return Disorder_GWAS_spec
 
@@ -208,20 +208,17 @@ def main():
     
     if args.mode == "HumanCT":
         Annotat = Anno
-        if args.biasMat == None:
-            Z2Mat = pd.read_csv("/home/jw3514/Work/CellType_Psy/dat/HumanCTExpressionMats/Human.Cluster.Log2Mean.Z1clip5.Z2.clip3.Dec30.csv", index_col=0)
-        else:
-            Z2Mat = pd.read_csv(args.biasMat, index_col=0)
-        Z2Mat.columns = Z2Mat.columns.astype(int)
+        BiasMat = pd.read_parquet(args.biasMat)
+        BiasMat.columns = BiasMat.columns.astype(int)
     elif args.mode == "MouseSTR":
         Annotat = STR2Region()
-        Z2Mat = pd.read_csv("/home/jw3514/Work/ASD_Circuits/dat/allen-mouse-exp/AllenMouseBrain_Z2bias.csv", index_col=0)
+        BiasMat = pd.read_parquet(args.biasMat)
     elif args.mode == "MouseCT":
         Annotat = pd.read_excel("../../data/Allen_Mouse_Brain_Cell_Atlas/SuppTables/41586_2023_6812_MOESM8_ESM.xlsx",
                           sheet_name="cluster_annotation", index_col="cluster_id_label")
-        Z2Mat = pd.read_csv("/home/jw3514/Work/CellType_Psy/AllenBrainCellAtlas/dat/SC_UMI_Mats/Cluster_Z2Mat_ISHMatch.z1clip3.csv", index_col=0)
+        BiasMat = pd.read_parquet(args.biasMat)
     
-    process_batch(input_files, Z2Mat, outDIR, args.mode, Annotat)
+    process_batch(input_files, BiasMat, outDIR, args.mode, Annotat)
 
 if __name__ == '__main__':
     main()

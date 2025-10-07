@@ -153,6 +153,16 @@ def analyze_bias_pca(input_dir, output_dir=None):
     loadings.to_csv(loadings_file)
     print(f"Saved loadings to {loadings_file}")
     
+    # Save explained variance ratios
+    explained_variance_df = pd.DataFrame({
+        'PC': [f'PC{i+1}' for i in range(len(pca.explained_variance_ratio_))],
+        'explained_variance_ratio': pca.explained_variance_ratio_,
+        'cumulative_variance_ratio': np.cumsum(pca.explained_variance_ratio_)
+    })
+    explained_variance_file = os.path.join(output_dir, "explained_variance_ratio.csv")
+    explained_variance_df.to_csv(explained_variance_file, index=False)
+    print(f"Saved explained variance ratios to {explained_variance_file}")
+    
     # Create and save scree plot
     plot_scree_and_get_loadings(pca)
     plt.savefig(os.path.join(output_dir, "scree_plot.png"))
